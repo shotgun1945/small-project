@@ -1,0 +1,16 @@
+body {
+    margin: 20px;
+  }
+  
+  .player-inputs {
+    margin-bottom: 20px;
+  }
+  
+  .select-group {
+    margin: 5px 0;
+  }
+  
+  .select-group label {
+    margin-right: 10px;
+  }
+  

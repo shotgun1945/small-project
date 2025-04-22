@@ -26,8 +26,24 @@
         <button onclick="addPlayer()" class="btn btn-primary btn-sm mb-2">
           추가
         </button>
+
+        <select id="existingPlayers" class="form-select mb-2">
+          <option value="">기존 플레이어 선택</option>
+        </select>
+        <button
+          onclick="addExistingPlayer()"
+          class="btn btn-secondary btn-sm mb-2"
+        >
+          기존 플레이어 추가
+        </button>
+
         <div id="playerList" class="mb-2"></div>
-        <button onclick="startGame()" class="btn btn-success">게임 시작</button>
+        <button onclick="startGame()" class="btn btn-success mt-3">
+          게임 시작
+        </button>
+        <button onclick="showResults()" class="btn btn-info mt-3">
+          저장된 결과 보기
+        </button>
       </div>
 
       <div id="game" style="display: none">
@@ -38,7 +54,7 @@
             <div id="buttons" class="my-3">
               <button
                 id="nextRoundButton"
-                onclick="onClickNextRound()"
+                onclick="nextRound()"
                 class="btn btn-warning"
               >
                 다음 라운드
@@ -58,48 +74,59 @@
           </div>
         </div>
       </div>
-    </div>
-    <!-- 모달 HTML -->
-    <div
-      class="modal fade"
-      id="confirmModal"
-      tabindex="-1"
-      aria-labelledby="confirmModalLabel"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="confirmModalLabel">
-              다음 라운드로 진행하시겠습니까?
-            </h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">다음 라운드로 진행하시겠습니까?</div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-secondary"
-              data-bs-dismiss="modal"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              class="btn btn-danger"
-              onclick="nextRound(); closeModal()"
-            >
-              확인
-            </button>
-          </div>
-        </div>
+
+      <div id="results" style="display: none">
+        <h3>저장된 결과</h3>
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>플레이어</th>
+              <th>참여한 게임 수</th>
+              <th>우승 횟수</th>
+              <th>최고 점수</th>
+              <th>평균 점수</th>
+              <th>라운드 평균 점수</th>
+              <th>평균 예측 성공률</th>
+            </tr>
+          </thead>
+          <tbody id="savedResults"></tbody>
+        </table>
+        <button onclick="resetToMain()" class="btn btn-primary mt-3">
+          메인 화면으로
+        </button>
       </div>
     </div>
     <script src="skullking.js"></script>
+    <script>
+      function populateExistingPlayers() {
+        const existingPlayersSelect =
+          document.getElementById("existingPlayers");
+        const gameResults =
+          JSON.parse(localStorage.getItem("gameResults")) || {};
+
+        existingPlayersSelect.innerHTML =
+          '<option value="">기존 플레이어 선택</option>';
+
+        Object.keys(gameResults).forEach((player) => {
+          const option = document.createElement("option");
+          option.value = player;
+          option.textContent = player;
+          existingPlayersSelect.appendChild(option);
+        });
+      }
+
+      function addExistingPlayer() {
+        const existingPlayersSelect =
+          document.getElementById("existingPlayers");
+        const selectedPlayer = existingPlayersSelect.value;
+
+        if (selectedPlayer && !players.includes(selectedPlayer)) {
+          players.push(selectedPlayer);
+          updatePlayerList();
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", populateExistingPlayers);
+    </script>
   </body>
 </html>

@@ -231,6 +231,19 @@ function renderScoreBoard() {
   });
 }
 
+function resetGame() {
+  // Reset all game variables
+  scores = {};
+  round = 1;
+  history = [];
+  backupRoundState = null;
+
+  // Reset UI elements
+  document.getElementById("setup").style.display = "block";
+  document.getElementById("game").style.display = "none";
+  document.querySelector("tbody").innerHTML = "";
+}
+
 function renderFinalRanking() {
   const gameDiv = document.getElementById("game");
   gameDiv.innerHTML = "<h2>최종 랭킹</h2>";
@@ -291,6 +304,9 @@ function renderFinalRanking() {
   });
   html += `</div>`;
 
+  // Add a button to reset the game
+  html += `<button onclick="resetGame()" class="btn btn-primary mt-4">처음으로 돌아가기</button>`;
+
   gameDiv.innerHTML += html;
 }
 
@@ -298,7 +314,6 @@ function onClickNextRound() {
   if (!validateActualWins()) {
     return; // 🔥 실제 승수 합이 맞지 않으면 진행 중단
   }
-
   const modalElement = document.getElementById("confirmModal");
   const modal = new bootstrap.Modal(modalElement);
   modal.show();
@@ -327,11 +342,15 @@ function validateActualWins() {
 }
 
 function nextRound() {
+  if (!validateActualWins()) {
+    return; // 🔥 실제 승수 합이 맞지 않으면 진행 중단
+  }
   calculateRound();
   renderScoreBoard();
 
   if (round === 10) {
     renderFinalRanking();
+    saveGameResults();
   } else {
     round++;
     if (round === 10) {
@@ -340,4 +359,112 @@ function nextRound() {
     document.getElementById("roundNumber").innerText = round;
     renderRoundInputs();
   }
+}
+
+function saveGameResults() {
+  const gameResults = JSON.parse(localStorage.getItem("gameResults")) || {};
+
+  players.forEach((player) => {
+    const playerHistory = history.filter((record) => record.player === player);
+    const totalRounds = playerHistory.length;
+    const correctPredictions = playerHistory.filter(
+      (record) => record.predict === record.actual
+    ).length;
+    const predictionAccuracy = totalRounds
+      ? ((correctPredictions / totalRounds) * 100).toFixed(2)
+      : 0;
+
+    // 10라운드의 순위를 최종 순위로 사용
+    const finalRank = playerHistory.find((record) => record.round === 10)?.rank;
+
+    const playerData = {
+      finalScore: scores[player],
+      finalRank: finalRank,
+      rounds: playerHistory.map((record) => ({
+        round: record.round,
+        predict: record.predict,
+        actual: record.actual,
+        gainedScore: record.gainedScore,
+        bonus: record.bonus,
+        rank: record.rank,
+      })),
+      predictionAccuracy: `${predictionAccuracy}%`,
+    };
+
+    if (!gameResults[player]) {
+      gameResults[player] = [];
+    }
+    gameResults[player].push(playerData);
+  });
+
+  localStorage.setItem("gameResults", JSON.stringify(gameResults));
+}
+
+function showResults() {
+  const resultsDiv = document.getElementById("results");
+  const setupDiv = document.getElementById("setup");
+  const gameDiv = document.getElementById("game");
+  const savedResultsDiv = document.getElementById("savedResults");
+
+  setupDiv.style.display = "none";
+  gameDiv.style.display = "none";
+  resultsDiv.style.display = "block";
+
+  const gameResults = JSON.parse(localStorage.getItem("gameResults")) || {};
+  let html = "";
+
+  if (Object.keys(gameResults).length === 0) {
+    html = `<tr><td colspan="7">저장된 결과가 없습니다.</td></tr>`;
+  } else {
+    for (const player in gameResults) {
+      const games = gameResults[player];
+      const totalGames = games.length;
+      const wins = games.filter((game) => game.finalRank === 1).length;
+      const highestScore = Math.max(...games.map((game) => game.finalScore));
+      const averageScore = (
+        games.reduce((sum, game) => sum + game.finalScore, 0) / totalGames
+      ).toFixed(2);
+      const totalRounds = games.reduce(
+        (sum, game) => sum + game.rounds.length,
+        0
+      );
+      const averageRoundScore = (
+        games.reduce(
+          (sum, game) =>
+            sum +
+            game.rounds.reduce((rSum, round) => rSum + round.gainedScore, 0),
+          0
+        ) / totalRounds
+      ).toFixed(2);
+      const averagePredictionAccuracy = (
+        games.reduce(
+          (sum, game) => sum + parseFloat(game.predictionAccuracy),
+          0
+        ) / totalGames
+      ).toFixed(2);
+
+      html += `<tr>
+        <td>${player}</td>
+        <td>${totalGames}</td>
+        <td>${wins}</td>
+        <td>${highestScore}</td>
+        <td>${averageScore}</td>
+        <td>${averageRoundScore}</td>
+        <td>${averagePredictionAccuracy}%</td>
+      </tr>`;
+    }
+  }
+
+  savedResultsDiv.innerHTML = html;
+}
+
+function resetToMain() {
+  const resultsDiv = document.getElementById("results");
+  const setupDiv = document.getElementById("setup");
+
+  resultsDiv.style.display = "none";
+  setupDiv.style.display = "block";
+
+  // 메인 화면으로 돌아왔을 때 동일한 플레이어 유지
+  updatePlayerList();
 }

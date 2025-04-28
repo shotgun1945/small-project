@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Boardgame Data</title>
+    <meta charset="UTF-8" />
+    <script>
+      async function loadData() {
+        const token = localStorage.getItem("authToken");
+
+        fetch("http://localhost:3000/api/data", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+          .then((res) => {
+            if (!res.ok) {
+              if (res.status === 401) {
+                alert("로그인 세션이 만료되었습니다. 다시 로그인 해주세요.");
+                window.location.href = "/bg-catalog/client/login.html";
+                return;
+              } else if (res.status === 500) {
+                alert("서버 오류입니다. 잠시 후 다시 시도해주세요.");
+                return;
+              }
+            }
+            return res.json();
+          })
+          .then((data) => {
+            console.log(data);
+          });
+      }
+
+      window.onload = loadData;
+    </script>
+  </head>
+  <body>
+    <h2>내 보드게임 목록</h2>
+    <table border="1">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>장르</th>
+          <th>플레이어 수</th>
+        </tr>
+      </thead>
+      <tbody id="game-table"></tbody>
+    </table>
+  </body>
+</html>

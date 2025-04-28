@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Boardgame Portal</title>
+    <style>
+      .hidden {
+        display: none;
+      }
+    </style>
+    <meta charset="UTF-8" />
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script>
+      // --- 페이지 로드 시 토큰이 있으면 자동 로그인 처리 ---
+      window.addEventListener("DOMContentLoaded", () => {
+        const saved = localStorage.getItem("authToken");
+        if (saved) {
+          // 토큰이 있으면 로그인 섹션 숨기고 데이터 섹션 표시
+          document.getElementById("login-section").classList.add("hidden");
+          document.getElementById("data-section").classList.remove("hidden");
+          loadData(); // 저장된 토큰으로 데이터 시도
+        }
+      });
+
+      // --- Google Login callback ---
+      function handleCredentialResponse(response) {
+        const idToken = response.credential;
+
+        fetch("http://localhost:3000/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ credential: idToken }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success && data.token) {
+              localStorage.setItem("authToken", data.token);
+              // UI 전환
+              document.getElementById("login-section").classList.add("hidden");
+              document
+                .getElementById("data-section")
+                .classList.remove("hidden");
+              loadData(); // 보드게임 데이터 호출
+            } else {
+              alert("접근이 허용되지 않은 계정입니다.");
+            }
+          })
+          .catch((err) => {
+            console.error("로그인 오류:", err);
+            alert("로그인 중 오류 발생");
+          });
+      }
+
+      // --- 보드게임 데이터 로드 ---
+      function loadData() {
+        const token = localStorage.getItem("authToken") || "";
+        fetch("http://localhost:3000/api/data", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((res) => {
+            if (!res.ok) {
+              if (res.status === 401) {
+                alert("로그인 세션이 만료되었습니다. 다시 로그인 해주세요.");
+                location.reload();
+                localStorage.setItem("authToken", "");
+                return;
+              }
+              alert("데이터를 불러오지 못했습니다.");
+              return;
+            }
+            return res.json();
+          })
+          .then((boardGames) => {
+            if (!boardGames) return;
+            const tbody = document.getElementById("game-table");
+            tbody.innerHTML = boardGames
+              .map(
+                (game) => `
+                  <tr>
+                    <td>${game.name}</td>
+                    <td>${game.baseGame}</td>
+                    <td>${game.maxPlayers}</td>
+                    <td>${game.weight}</td>
+                    <td>${game.price}</td>
+                    <td>${game.notes}</td>
+                  </tr>`
+              )
+              .join("");
+          })
+          .catch((e) => console.error(e));
+      }
+    </script>
+  </head>
+  <body>
+    <!-- 로그인 섹션 -->
+    <section id="login-section">
+      <h2>Boardgame Data Access</h2>
+      <p>Google 계정으로 로그인하세요</p>
+      <div
+        id="g_id_onload"
+        data-client_id="137337951294-6mdldkiabkft69p1pd7avk1lbgahpd7u.apps.googleusercontent.com"
+        data-callback="handleCredentialResponse"
+        data-auto_prompt="true"
+        data-itp_support="true"
+      ></div>
+      <div class="g_id_signin" data-type="standard"></div>
+    </section>
+
+    <!-- 데이터 섹션 (초기에는 숨김) -->
+    <section id="data-section" class="hidden">
+      <h2>내 보드게임 목록</h2>
+      <table border="1">
+        <thead>
+          <tr>
+            <th>이름</th>
+            <th>본판</th>
+            <th>플레이어 수</th>
+            <th>Weight</th>
+            <th>가격</th>
+            <th>기타</th>
+          </tr>
+        </thead>
+        <tbody id="game-table"></tbody>
+      </table>
+    </section>
+  </body>
+</html>

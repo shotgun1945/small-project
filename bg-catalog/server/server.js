@@ -62,6 +62,7 @@ app.post("/auth/login", async (req, res) => {
 
 class BoardGame {
   constructor(
+    index = 0,
     name = "",
     baseGame = "",
     maxPlayers = "",
@@ -69,6 +70,7 @@ class BoardGame {
     price = "",
     notes = ""
   ) {
+    this.index = index;
     this.name = name;
     this.baseGame = baseGame;
     this.maxPlayers = maxPlayers;
@@ -106,7 +108,7 @@ app.get("/api/data", async (req, res) => {
 
     // 데이터를 BoardGame 객체로 변환
     const boardGames = rows.map(
-      (r) => new BoardGame(r[0], r[1], r[2], r[3], r[4], r[5])
+      (r, index) => new BoardGame(index, r[0], r[1], r[2], r[3], r[4], r[5])
     );
 
     res.json(boardGames);

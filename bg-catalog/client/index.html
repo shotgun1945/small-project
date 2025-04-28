@@ -6,6 +6,54 @@
       .hidden {
         display: none;
       }
+
+      #game-album {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .game-card {
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        width: 200px;
+        text-align: center;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+        background: linear-gradient(145deg, #ffffff, #e6e6e6);
+        box-shadow: 6px 6px 12px #c5c5c5, -6px -6px 12px #ffffff;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .game-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 8px 8px 16px #c5c5c5, -8px -8px 16px #ffffff;
+      }
+
+      .game-card img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .game-card .card-body {
+        padding: 15px;
+      }
+
+      .game-card .card-title {
+        font-size: 1.2em;
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #333;
+      }
+
+      .game-card .card-text {
+        font-size: 0.9em;
+        color: #555;
+      }
     </style>
     <meta charset="UTF-8" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -71,20 +119,97 @@
           })
           .then((boardGames) => {
             if (!boardGames) return;
-            const tbody = document.getElementById("game-table");
-            tbody.innerHTML = boardGames
-              .map(
-                (game) => `
-                  <tr>
-                    <td>${game.name}</td>
-                    <td>${game.baseGame}</td>
-                    <td>${game.maxPlayers}</td>
-                    <td>${game.weight}</td>
-                    <td>${game.price}</td>
-                    <td>${game.notes}</td>
-                  </tr>`
-              )
-              .join("");
+            const hiddenTbody = document.getElementById("hidden-game-table");
+            hiddenTbody.innerHTML = "";
+
+            const album = document.getElementById("game-album");
+            if (!album) {
+              console.error("game-album 요소를 찾을 수 없습니다.");
+              return;
+            }
+            album.innerHTML = "";
+
+            // 데이터를 baseGame 기준으로 그룹화
+            const groupedGames = boardGames.reduce((acc, game) => {
+              if (!game.baseGame) {
+                acc[game.name] = { base: game, expansions: [] };
+              } else {
+                if (!acc[game.baseGame]) {
+                  acc[game.baseGame] = { base: null, expansions: [] };
+                }
+                acc[game.baseGame].expansions.push(game);
+              }
+              return acc;
+            }, {});
+
+            // 그룹화된 데이터를 앨범 형식으로 렌더링
+            Object.values(groupedGames).forEach(({ base, expansions }) => {
+              if (base) {
+                const expansionList = expansions
+                  .map(
+                    (expansion) => `
+                      <li>
+                        ${expansion.name} (플레이어 수: ${expansion.maxPlayers}, Weight: ${expansion.weight})
+                      </li>`
+                  )
+                  .join("");
+
+                album.innerHTML += `
+                  <div class="game-card">
+                    <img src="https://via.placeholder.com/200x150?text=${encodeURIComponent(
+                      base.name
+                    )}" alt="${base.name}" />
+                    <div class="card-body">
+                      <div class="card-title">${base.name}</div>
+                      <div class="card-text">
+                        플레이어 수: ${base.maxPlayers}<br />
+                        Weight: ${base.weight}
+                      </div>
+                      <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#expansions-${
+                        base.name
+                      }" aria-expanded="false" aria-controls="expansions-${
+                  base.name
+                }">
+                        확장팩 보기
+                      </button>
+                      <div class="collapse" id="expansions-${base.name}">
+                        <ul>${expansionList}</ul>
+                      </div>
+                    </div>
+                  </div>`;
+              }
+            });
+
+            // 그룹화된 데이터를 테이블에 렌더링
+            Object.values(groupedGames).forEach(({ base, expansions }) => {
+              if (base) {
+                if (base.notes.includes("방출")) {
+                  hiddenTbody.innerHTML += `
+                    <tr>
+                      <td><strong>${base.name}</strong></td>
+                      <td>${base.baseGame}</td>
+                      <td>${base.maxPlayers}</td>
+                      <td>${base.weight}</td>
+                      <td>${base.price}</td>
+                      <td>${base.notes}</td>
+                    </tr>`;
+                }
+              }
+
+              expansions.forEach((expansion) => {
+                if (expansion.notes.includes("방출")) {
+                  hiddenTbody.innerHTML += `
+                    <tr>
+                      <td style="padding-left: 20px;">- ${expansion.name}</td>
+                      <td>${expansion.baseGame}</td>
+                      <td>${expansion.maxPlayers}</td>
+                      <td>${expansion.weight}</td>
+                      <td>${expansion.price}</td>
+                      <td>${expansion.notes}</td>
+                    </tr>`;
+                }
+              });
+            });
           })
           .catch((e) => console.error(e));
       }
@@ -108,19 +233,23 @@
     <!-- 데이터 섹션 (초기에는 숨김) -->
     <section id="data-section" class="hidden">
       <h2>내 보드게임 목록</h2>
-      <table border="1">
-        <thead>
-          <tr>
-            <th>이름</th>
-            <th>본판</th>
-            <th>플레이어 수</th>
-            <th>Weight</th>
-            <th>가격</th>
-            <th>기타</th>
-          </tr>
-        </thead>
-        <tbody id="game-table"></tbody>
-      </table>
+      <div id="game-album"></div>
+      <section class="hidden" id="hidden-games-section">
+        <h2>숨겨진 보드게임 목록</h2>
+        <table border="1">
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>기본 게임</th>
+              <th>플레이어 수</th>
+              <th>Weight</th>
+              <th>가격</th>
+              <th>기타</th>
+            </tr>
+          </thead>
+          <tbody id="hidden-game-table"></tbody>
+        </table>
+      </section>
     </section>
   </body>
 </html>

@@ -3,11 +3,17 @@ const session = require("express-session");
 const cors = require("cors");
 const axios = require("axios");
 require("dotenv").config();
-const fs = require("fs").promises;
-const path = require("path");
 const process = require("process");
 const { authenticate } = require("@google-cloud/local-auth");
 const { google } = require("googleapis");
+const fs = require("fs");
+const path = require("path");
+
+// 이미지 저장 디렉토리 설정
+const IMAGE_DIR = path.join(__dirname, "../images/");
+if (!fs.existsSync(IMAGE_DIR)) {
+  fs.mkdirSync(IMAGE_DIR);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -68,7 +74,8 @@ class BoardGame {
     maxPlayers = "",
     weight = "",
     price = "",
-    notes = ""
+    notes = "",
+    bgg_code = ""
   ) {
     this.index = index;
     this.name = name;
@@ -77,6 +84,7 @@ class BoardGame {
     this.weight = weight;
     this.price = price;
     this.notes = notes;
+    this.bgg_code = bgg_code;
   }
 }
 
@@ -99,7 +107,7 @@ app.get("/api/data", async (req, res) => {
   }
 
   try {
-    const sheetRange = encodeURIComponent(`보드게임!A2:F200`);
+    const sheetRange = encodeURIComponent(`보드게임!A2:G200`);
     const sheetUri = `https://sheets.googleapis.com/v4/spreadsheets/${process.env.SHEET_ID}/values/${sheetRange}?key=${process.env.API_KEY}`;
     console.log("Fetching data from Google Sheets...", sheetUri);
 
@@ -108,13 +116,61 @@ app.get("/api/data", async (req, res) => {
 
     // 데이터를 BoardGame 객체로 변환
     const boardGames = rows.map(
-      (r, index) => new BoardGame(index, r[0], r[1], r[2], r[3], r[4], r[5])
+      (r, index) =>
+        new BoardGame(index, r[0], r[1], r[2], r[3], r[4], r[5], r[6])
     );
 
     res.json(boardGames);
   } catch (err) {
     console.error("Error fetching data from Google Sheets:", err.message);
     res.status(500).send("Error fetching data");
+  }
+});
+
+// 📷 BGG 이미지 요청 처리
+app.get("/api/bgg-image", async (req, res) => {
+  const { id } = req.query;
+  if (!id) {
+    return res.status(400).send("Missing BGG ID");
+  }
+
+  const imagePath = path.join(IMAGE_DIR, `${id}.jpg`);
+
+  // 로컬에 이미지가 있는지 확인
+  if (fs.existsSync(imagePath)) {
+    return res.sendFile(imagePath);
+  }
+
+  try {
+    const bggUrl = `https://boardgamegeek.com/xmlapi2/thing?id=${id}`;
+    const response = await axios.get(bggUrl, {
+      headers: { Accept: "application/xml" },
+    });
+
+    const xmlData = response.data;
+    const imageMatch = xmlData.match(/<image>(.*?)<\/image>/);
+
+    if (imageMatch && imageMatch[1]) {
+      const imageUrl = imageMatch[1];
+
+      // 이미지 다운로드 및 저장
+      const imageResponse = await axios.get(imageUrl, {
+        responseType: "stream",
+      });
+      const writer = fs.createWriteStream(imagePath);
+      imageResponse.data.pipe(writer);
+
+      writer.on("finish", () => res.sendFile(imagePath));
+      writer.on("error", (err) => {
+        console.error("Error saving image:", err);
+        res.status(500).send("Error saving image");
+      });
+    } else {
+      res.status(404).send("Image not found in BGG response");
+    }
+  } catch (error) {
+    console.error("Error fetching data from BGG API:", error.message);
+    res.status(500).send("Error fetching data from BGG API");
   }
 });
 

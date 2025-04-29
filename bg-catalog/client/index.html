@@ -14,6 +14,12 @@
         justify-content: center;
         padding: 20px;
       }
+
+      img {
+        height: 200px;
+        object-fit: contain;
+        width: auto;
+      }
     </style>
     <meta charset="UTF-8" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -63,8 +69,26 @@
           });
       }
 
+      // --- BGG 이미지 가져오기 ---
+      async function fetchBggImage(bggId) {
+        try {
+          const response = await fetch(
+            `http://localhost:3000/api/bgg-image?id=${bggId}`
+          );
+          if (!response.ok) {
+            console.error("Failed to fetch BGG image", response.statusText);
+            return null;
+          }
+          const data = await response.json();
+          return data.image;
+        } catch (error) {
+          console.error("Error fetching BGG image:", error);
+          return null;
+        }
+      }
+
       // --- 보드게임 데이터 로드 ---
-      function loadData() {
+      async function loadData() {
         const token = localStorage.getItem("authToken") || "";
         fetch("http://localhost:3000/api/data", {
           headers: { Authorization: `Bearer ${token}` },
@@ -82,7 +106,7 @@
             }
             return res.json();
           })
-          .then((boardGames) => {
+          .then(async (boardGames) => {
             if (!boardGames) return;
             const hiddenTbody = document.getElementById("hidden-game-table");
             hiddenTbody.innerHTML = "";
@@ -108,8 +132,13 @@
             }, {});
 
             // 그룹화된 데이터를 앨범 형식으로 렌더링
-            Object.values(groupedGames).forEach(({ base, expansions }) => {
+            for (const { base, expansions } of Object.values(groupedGames)) {
               if (base) {
+                // const imageUrl = base.bgg_code
+                // ? await fetchBggImage(base.bgg_code)
+                // : "https://dummyimage.com/200x150/cccccc/000000&text=No+Image+Available";
+                const imageUrl =
+                  "https://dummyimage.com/200x150/cccccc/000000&text=No+Image+Available";
                 const expansionList = expansions
                   .map(
                     (expansion) => `
@@ -121,20 +150,14 @@
 
                 album.innerHTML += `
                   <div class="card" style="width: 18rem; margin-bottom: 20px;">
-                    <img src="https://via.placeholder.com/200x150?text=${encodeURIComponent(
-                      base.name
-                    )}" class="card-img-top" alt="${base.name}" />
+                    <img src="${imageUrl}" class="card-img-top" alt="${base.name}" />
                     <div class="card-body">
                       <h5 class="card-title">${base.name}</h5>
                       <p class="card-text">
                         플레이어 수: ${base.maxPlayers}<br />
                         Weight: ${base.weight}
                       </p>
-                      <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#expansions-${
-                        base.index
-                      }" aria-expanded="false" aria-controls="expansions-${
-                  base.index
-                }">
+                      <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#expansions-${base.index}" aria-expanded="false" aria-controls="expansions-${base.index}">
                         확장팩 보기
                       </button>
                       <div class="collapse" id="expansions-${base.index}">
@@ -143,7 +166,7 @@
                     </div>
                   </div>`;
               }
-            });
+            }
 
             // 그룹화된 데이터를 테이블에 렌더링
             Object.values(groupedGames).forEach(({ base, expansions }) => {

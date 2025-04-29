@@ -140,7 +140,7 @@ app.get("/api/bgg-image", async (req, res) => {
   if (fs.existsSync(imagePath)) {
     return res.sendFile(imagePath);
   }
-
+  return res.status(400).send("No Image found");
   try {
     const bggUrl = `https://boardgamegeek.com/xmlapi2/thing?id=${id}`;
     const response = await axios.get(bggUrl, {

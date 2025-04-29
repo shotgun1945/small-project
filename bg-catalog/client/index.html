@@ -134,11 +134,9 @@
             // 그룹화된 데이터를 앨범 형식으로 렌더링
             for (const { base, expansions } of Object.values(groupedGames)) {
               if (base) {
-                // const imageUrl = base.bgg_code
-                // ? await fetchBggImage(base.bgg_code)
-                // : "https://dummyimage.com/200x150/cccccc/000000&text=No+Image+Available";
-                const imageUrl =
-                  "https://dummyimage.com/200x150/cccccc/000000&text=No+Image+Available";
+                const imageUrl = base.bgg_code
+                  ? await fetchBggImage(base.bgg_code)
+                  : "https://dummyimage.com/200x150/cccccc/000000&text=No+Image+Available";
                 const expansionList = expansions
                   .map(
                     (expansion) => `
